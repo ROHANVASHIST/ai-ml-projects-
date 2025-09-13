@@ -1,0 +1,67 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+# Load fitness data from CSV
+def load_data(file_path):
+    df = pd.read_csv(file_path, parse_dates=['Date'])
+    df.sort_values('Date', inplace=True)
+    df.set_index('Date', inplace=True)
+    return df
+
+# Calculate averages
+def calculate_averages(df):
+    daily_avg = df.mean()
+    weekly_avg = df.resample('W').mean()
+    monthly_avg = df.resample('M').mean()
+    return daily_avg, weekly_avg, monthly_avg
+
+# Find best and worst days
+def find_extremes(df, metric='Steps'):
+    best_day = df[metric].idxmax()
+    worst_day = df[metric].idxmin()
+    return best_day, worst_day
+
+# Identify trends
+def identify_trends(df, metric='Steps'):
+    df['RollingAvg'] = df[metric].rolling(window=7).mean()
+    trend = "increasing" if df['RollingAvg'].iloc[-1] > df['RollingAvg'].iloc[0] else "decreasing"
+    return trend
+
+# Generate report
+def generate_report(df):
+    daily_avg, weekly_avg, monthly_avg = calculate_averages(df)
+    best_day, worst_day = find_extremes(df)
+    trend = identify_trends(df)
+
+    print("\n📊 FITNESS REPORT")
+    print("----------------------------")
+    print(f"Daily Average:\n{daily_avg.round(2)}")
+    print(f"\nBest Day (Steps): {best_day.strftime('%Y-%m-%d')} - {df.loc[best_day, 'Steps']} steps")
+    print(f"Worst Day (Steps): {worst_day.strftime('%Y-%m-%d')} - {df.loc[worst_day, 'Steps']} steps")
+    print(f"\nTrend over time: Your activity is {trend}.")
+    
+    # Recommendations
+    print("\n✅ RECOMMENDATIONS")
+    print("----------------------------")
+    if trend == "decreasing":
+        print("- Try setting small daily goals to boost consistency.")
+        print("- Consider scheduling workouts or walks with friends.")
+    else:
+        print("- Great job! Keep up the momentum.")
+        print("- Challenge yourself with weekly targets.")
+
+    # Optional: Plot trends
+    df['Steps'].plot(title='Daily Steps with 7-Day Rolling Average', figsize=(10, 5))
+    df['RollingAvg'].plot()
+    plt.legend(['Daily Steps', '7-Day Avg'])
+    plt.xlabel('Date')
+    plt.ylabel('Steps')
+    plt.tight_layout()
+    plt.show()
+
+# Example usage
+if __name__ == "__main__":
+    file_path = 'fitness_data.csv'  # Replace with your actual CSV path
+    df = load_data(file_path)
+    generate_report(df)
