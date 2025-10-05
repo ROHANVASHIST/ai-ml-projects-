@@ -1,0 +1,7 @@
+from sklearn.metrics import mean_squared_error, r2_score
+import streamlit as st
+st.title("House Price Predictor")
+size = st.slider("Size (sq ft)", 500, 5000)
+rooms = st.selectbox("Rooms", [1, 2, 3, 4, 5])
+location = st.selectbox("Location", location_list)
+# Predict and display
