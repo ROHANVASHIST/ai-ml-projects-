@@ -1,7 +1,99 @@
+# model_training.py
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+import joblib
+
+def load_data(path="house_data.csv"):
+    df = pd.read_csv(path)
+    df = pd.get_dummies(df, columns=["location"], drop_first=True)
+    return df
+
+def train_models(df):
+    X = df.drop("price", axis=1)
+    y = df["price"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    models = {
+        "Linear Regression": LinearRegression(),
+        "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
+        "Gradient Boosting": GradientBoostingRegressor(n_estimators=100, random_state=42)
+    }
+
+    results = {}
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        preds = model.predict(X_test)
+        rmse = np.sqrt(mean_squared_error(y_test, preds))
+        r2 = r2_score(y_test, preds)
+        results[name] = {"model": model, "RMSE": rmse, "R2": r2}
+
+    best_model = min(results.items(), key=lambda x: x[1]["RMSE"])
+    joblib.dump(best_model[1]["model"], "best_model.pkl")
+    return results, best_model[0]
+
+if __name__ == "__main__":
+    df = load_data()
+    results, best = train_models(df)
+    print(f"Best model: {best}")
+    for name, metrics in results.items():
+        print(f"{name}: RMSE={metrics['RMSE']:.2f}, R2={metrics['R2']:.2f}")
+
+# confidence_interval.py
+import numpy as np
+
+def prediction_interval(model, X, alpha=0.05):
+    preds = model.predict(X)
+    residuals = preds - model.predict(X)
+    std = np.std(residuals)
+    z = 1.96  # for 95% CI
+    lower = preds - z * std
+    upper = preds + z * std
+    return preds, lower, upper
+# app.py
 import streamlit as st
-st.title("House Price Predictor")
-size = st.slider("Size (sq ft)", 500, 5000)
-rooms = st.selectbox("Rooms", [1, 2, 3, 4, 5])
-location = st.selectbox("Location", location_list)
-# Predict and display
+import pandas as pd
+import joblib
+from confidence_interval import prediction_interval
+
+st.title("🏠 House Price Predictor")
+
+# Input form
+size = st.slider("Size (sq ft)", 500, 5000, 1500)
+rooms = st.selectbox("Number of Rooms", [1, 2, 3, 4, 5])
+bathrooms = st.selectbox("Bathrooms", [1, 2, 3])
+location = st.selectbox("Location", ["Downtown", "Suburb", "Rural"])
+
+# Prepare input
+input_dict = {
+    "size": size,
+    "rooms": rooms,
+    "bathrooms": bathrooms,
+    "location_Suburb": 1 if location == "Suburb" else 0,
+    "location_Rural": 1 if location == "Rural" else 0
+}
+X_input = pd.DataFrame([input_dict])
+
+# Load model
+model = joblib.load("best_model.pkl")
+
+# Predict
+if st.button("Predict Price"):
+    pred, lower, upper = prediction_interval(model, X_input)
+    st.success(f"Estimated Price: ₹{pred[0]:,.0f}")
+    st.info(f"Confidence Interval: ₹{lower[0]:,.0f} - ₹{upper[0]:,.0f}")
+
+size,rooms,bathrooms,location,price
+1500,3,2,Downtown,7500000
+1200,2,1,Suburb,5000000
+1800,4,3,Rural,6000000
+...
+
+pip install pandas scikit-learn streamlit joblib
+python model_training.py
+python model_training.py
+
+
