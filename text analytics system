@@ -1,0 +1,56 @@
+
+from langchain.chains import ConversationalRetrievalChain
+from langchain.vectorstores import FAISS
+from langchain.embeddings import HuggingFaceEmbeddings
+
+def build_chatbot():
+    retriever = FAISS.load_local("chat_memory").as_retriever()
+    chain = ConversationalRetrievalChain.from_llm(llm, retriever=retriever)
+    return chain
+
+# sentiment.py
+from transformers import pipeline
+import pandas as pd
+
+sentiment = pipeline("sentiment-analysis")
+def analyze_sentiment(texts):
+    return pd.DataFrame(sentiment(texts))
+
+# doc_intel.py
+from haystack.nodes import FARMReader, TransformersSummarizer
+from haystack.document_stores import InMemoryDocumentStore
+
+def extract_info(doc):
+    store = InMemoryDocumentStore()
+    reader = FARMReader(model_name_or_path="deepset/roberta-base-squad2")
+    summarizer = TransformersSummarizer()
+    # Load doc, run Q&A and summarization
+
+# generator.py
+from transformers import pipeline
+
+generator = pipeline("text-generation", model="gpt2")
+def generate_content(prompt):
+    return generator(prompt, max_length=200)[0]["generated_text"]
+
+# multilingual.py
+from transformers import MarianMTModel, MarianTokenizer
+
+def translate(text, src="en", tgt="fr"):
+    model_name = f"Helsinki-NLP/opus-mt-{src}-{tgt}"
+    tokenizer = MarianTokenizer.from_pretrained(model_name)
+    model = MarianMTModel.from_pretrained(model_name)
+    inputs = tokenizer(text, return_tensors="pt", padding=True)
+    translated = model.generate(**inputs)
+    return tokenizer.decode(translated[0], skip_special_tokens=True)
+
+# stream_processor.py
+from kafka import KafkaConsumer
+import json
+from sentiment import analyze_sentiment
+
+consumer = KafkaConsumer("text_stream", value_deserializer=lambda m: json.loads(m.decode("utf-8")))
+for msg in consumer:
+    result = analyze_sentiment([msg["text"]])
+    print(result)
+
