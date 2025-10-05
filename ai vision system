@@ -1,0 +1,66 @@
+# models/object_classifier.py
+from torchvision import models, transforms
+import torch
+
+model = models.resnet50(pretrained=True)
+model.eval()
+
+def classify_image(img):
+    preprocess = transforms.Compose([...])
+    input_tensor = preprocess(img).unsqueeze(0)
+    with torch.no_grad():
+        output = model(input_tensor)
+    class_id = output.argmax().item()
+    return class_id
+# models/xray_detector.py
+# Load a fine-tuned DenseNet or ResNet on chest X-ray dataset (e.g., NIH or CheXpert)
+def detect_anomaly(img):
+    # Preprocess and predict
+    return {"anomaly": True, "confidence": 0.87}
+
+# models/plant_disease.py
+def detect_disease(img):
+    # Return disease class and confidence
+    return {"disease": "Powdery Mildew", "confidence": 0.92}
+# models/face_analysis.py
+from deepface import DeepFace
+
+def analyze_face(img_path):
+    result = DeepFace.analyze(img_path, actions=["age", "gender", "emotion"])
+    return result
+# realtime.py
+import cv2
+from models.object_classifier import classify_image
+
+cap = cv2.VideoCapture(0)
+while True:
+    ret, frame = cap.read()
+    label = classify_image(frame)
+    cv2.putText(frame, label, ...)
+    cv2.imshow("Live Inference", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# batch_processor.py
+import os
+from PIL import Image
+from models.object_classifier import classify_image
+
+def process_folder(folder_path, task):
+    results = []
+    for file in os.listdir(folder_path):
+        img = Image.open(os.path.join(folder_path, file))
+        result = task(img)
+        results.append({"file": file, "result": result})
+    return results
+# api.py
+from fastapi import FastAPI, UploadFile
+from models import object_classifier, xray_detector, plant_disease, face_analysis
+
+app = FastAPI()
+
+@app.post("/classify")
+async def classify(file: UploadFile):
+    img = Image.open(file.file)
+    result = object_classifier.classify_image(img)
+    return {"class": result}
