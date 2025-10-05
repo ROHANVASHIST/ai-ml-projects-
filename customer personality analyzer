@@ -1,0 +1,107 @@
+# data_analysis.py
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def load_data(path="customer_data.csv"):
+    df = pd.read_csv(path)
+    return df
+
+def analyze_patterns(df):
+    summary = df.describe()
+    corr = df.corr()
+    sns.heatmap(corr, annot=True)
+    plt.title("Feature Correlation")
+    plt.savefig("correlation_heatmap.png")
+    return summary
+  # clustering.py
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+import pandas as pd
+
+def cluster_customers(df, n_clusters=4):
+    features = ["avg_purchase", "frequency", "recency", "tenure"]
+    X = StandardScaler().fit_transform(df[features])
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    df["segment"] = kmeans.fit_predict(X)
+    return df, kmeans
+
+# churn_model.py
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+import joblib
+
+def train_churn_model(df):
+    X = df.drop(["churn", "customer_id"], axis=1)
+    y = df["churn"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.2)
+    model = RandomForestClassifier(random_state=42)
+    model.fit(X_train, y_train)
+    joblib.dump(model, "churn_model.pkl")
+    report = classification_report(y_test, model.predict(X_test), output_dict=True)
+    return report
+
+# personas.py
+def generate_personas(df):
+    personas = {}
+    for seg in df["segment"].unique():
+        group = df[df["segment"] == seg]
+        personas[seg] = {
+            "avg_purchase": group["avg_purchase"].mean(),
+            "frequency": group["frequency"].mean(),
+            "recency": group["recency"].mean(),
+            "description": f"Segment {seg}: {'High' if group['avg_purchase'].mean() > 5000 else 'Low'} spenders, {'frequent' if group['frequency'].mean() > 10 else 'occasional'} buyers"
+        }
+    return personas
+
+# recommendations.py
+def generate_recommendations(personas):
+    recs = {}
+    for seg, data in personas.items():
+        if data["avg_purchase"] > 5000:
+            recs[seg] = "Offer loyalty rewards and premium bundles"
+        elif data["frequency"] < 5:
+            recs[seg] = "Send re-engagement emails and discounts"
+        else:
+            recs[seg] = "Promote seasonal campaigns and upsell"
+    return recs
+
+# dashboard.py
+import streamlit as st
+import pandas as pd
+import joblib
+from personas import generate_personas
+from recommendations import generate_recommendations
+
+st.title("📈 Customer Insights Dashboard")
+
+df = pd.read_csv("segmented_customers.csv")
+model = joblib.load("churn_model.pkl")
+
+st.subheader("Segment Distribution")
+st.bar_chart(df["segment"].value_counts())
+
+st.subheader("Churn Prediction")
+customer_id = st.text_input("Enter Customer ID")
+if customer_id:
+    customer = df[df["customer_id"] == int(customer_id)].drop(["churn", "customer_id", "segment"], axis=1)
+    pred = model.predict(customer)[0]
+    st.success(f"Churn Prediction: {'Likely to Churn' if pred == 1 else 'Retained'}")
+
+st.subheader("Customer Personas")
+personas = generate_personas(df)
+recs = generate_recommendations(personas)
+for seg, info in personas.items():
+    st.markdown(f"**Segment {seg}**")
+    st.write(info["description"])
+    st.info(f"Recommendation: {recs[seg]}")
+
+customer_id,avg_purchase,frequency,recency,tenure,churn
+101,6000,12,5,24,0
+102,2000,3,30,12,1
+...
+
+
+pip install pandas scikit-learn streamlit seaborn matplotlib joblib
+streamlit run dashboard.py
